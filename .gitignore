@@ -1,0 +1,3 @@
+# Build output from main.ts (dossier dirs) and raw screenshot renders.
+out*/
+*.png
