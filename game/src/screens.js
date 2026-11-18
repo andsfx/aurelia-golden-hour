@@ -1,7 +1,9 @@
 // Screens drawn over the live world: title with the logo and menu, the intro story, pause,
 // mission complete with stats, and the BUSTED / WASTED endings. Each one is a pure overlay;
 // the game state under it keeps rendering (the city pans behind the title, cops idle after
-// a bust).
+// a bust). The state machine is a single `game.screen` string: 'title' -> 'intro' -> 'play'
+// loops through 'complete' after each job and 'busted'/'wasted' both respawn back to 'play',
+// with 'paused' and 'controls' as side rooms that always return to where they came from.
 import { VIEW_H, VIEW_W } from './config.js';
 
 export const MENU_NEW = 0;
@@ -179,31 +181,95 @@ function drawPause(ctx, game) {
 
 function drawComplete(ctx, game) {
   const c = game.completeInfo;
-  ctx.fillStyle = 'rgba(10,12,14,0.78)';
+  // warm golden backdrop, fully opaque so the shot reads as one clean card
+  const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+  g.addColorStop(0, 'rgba(46,30,14,0.97)');
+  g.addColorStop(0.55, 'rgba(30,19,9,0.97)');
+  g.addColorStop(1, 'rgba(16,10,6,0.98)');
+  ctx.fillStyle = g;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  panel(ctx, VIEW_W / 2 - 250, 150, 500, 330);
-  title(ctx, 'MISSION PASSED', VIEW_W / 2, 216, 40, '#6dbb4e');
-  ctx.font = 'bold 22px "Trebuchet MS", sans-serif';
+  // sun-flare accent behind the banner
+  const flare = ctx.createRadialGradient(VIEW_W / 2, 150, 0, VIEW_W / 2, 150, 340);
+  flare.addColorStop(0, 'rgba(232,201,74,0.22)');
+  flare.addColorStop(1, 'rgba(232,201,74,0)');
+  ctx.fillStyle = flare;
+  ctx.fillRect(VIEW_W / 2 - 340, 0, 680, 420);
+  title(ctx, 'MISSION COMPLETE', VIEW_W / 2, 148, 52, '#e8c94a');
+  ctx.font = 'italic bold 30px Georgia, serif';
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#e8c94a';
-  ctx.fillText(c.title, VIEW_W / 2, 260);
-  ctx.font = 'bold 20px "Trebuchet MS", sans-serif';
+  ctx.fillStyle = '#f7c8a0';
+  ctx.fillText(c.title, VIEW_W / 2, 204);
+  ctx.font = 'bold 26px "Trebuchet MS", sans-serif';
   ctx.fillStyle = '#6dbb4e';
-  ctx.fillText(`Reward  +$${c.reward}`, VIEW_W / 2, 306);
-  ctx.font = '16px "Trebuchet MS", sans-serif';
-  ctx.fillStyle = '#c9cdd4';
-  ctx.fillText(`Time  ${c.timeText}      Balance  $${game.money.toLocaleString('en-US')}`, VIEW_W / 2, 348);
-  if (c.last) {
+  ctx.fillText(`Reward  +$${c.reward}`, VIEW_W / 2, 258);
+  // stats card
+  const rows = c.stats ?? [['Time', c.timeText], ['Balance', `$${game.money.toLocaleString('en-US')}`]];
+  const cw = 460;
+  const cx = VIEW_W / 2 - cw / 2;
+  const cy = 292;
+  const ch = 18 + rows.length * 30 + 14;
+  panel(ctx, cx, cy, cw, ch);
+  for (let k = 0; k < rows.length; k++) {
+    const ry = cy + 26 + k * 30;
+    ctx.font = 'bold 15px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#aab3c0';
+    ctx.fillText(rows[k][0], cx + 20, ry);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#f7f2e6';
+    ctx.fillText(rows[k][1], cx + cw - 20, ry);
+  }
+  // story beat, right under the stats
+  const storyY = cy + ch + 40;
+  if (c.storyBeat) {
+    ctx.font = 'italic 17px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#e8c94a';
+    ctx.fillText(c.storyBeat, VIEW_W / 2, storyY);
+  } else if (c.last) {
     ctx.fillStyle = '#e8c94a';
     ctx.font = 'bold 18px "Trebuchet MS", sans-serif';
-    ctx.fillText('The story is over. The city is yours.', VIEW_W / 2, 392);
+    ctx.fillText('The story is over. The city is yours.', VIEW_W / 2, storyY);
   }
+  // PROGRESS SAVED badge
+  const badgeW = 190;
+  const badgeX = VIEW_W / 2 - badgeW / 2;
+  const badgeY = storyY + 36;
+  ctx.fillStyle = 'rgba(20,34,22,0.9)';
+  roundRect4(ctx, badgeX, badgeY, badgeW, 34, 8);
+  ctx.fill();
+  ctx.strokeStyle = '#6dbb4e';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = '#6dbb4e';
+  ctx.font = 'bold 15px "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('PROGRESS SAVED', VIEW_W / 2, badgeY + 22);
+  // checkmark in the badge
+  ctx.strokeStyle = '#6dbb4e';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(badgeX + 22, badgeY + 18);
+  ctx.lineTo(badgeX + 30, badgeY + 25);
+  ctx.lineTo(badgeX + 42, badgeY + 11);
+  ctx.stroke();
   const blink = Math.sin(game.time * 5) > -0.3;
   if (blink) {
     ctx.font = 'bold 15px "Trebuchet MS", sans-serif';
     ctx.fillStyle = '#e8c94a';
-    ctx.fillText('Press Enter to keep playing', VIEW_W / 2, 452);
+    ctx.fillText('Press Enter to keep playing', VIEW_W / 2, badgeY + 64);
   }
+}
+
+function roundRect4(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 function drawEnding(ctx, game, word, color, sub) {

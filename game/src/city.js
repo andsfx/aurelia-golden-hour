@@ -99,9 +99,10 @@ export function createCity(rng) {
     g.fillStyle = pal.block;
     g.fillRect(block.x, block.y, block.w, block.h);
     for (const b of block.buildings) {
-      // Golden-hour shadow to the southeast, then the building on top.
+      // Golden-hour shadow to the southeast - lengthened (10, 13) so the low sun reads
+      // even on the tall downtown towers.
       g.fillStyle = 'rgba(40,30,20,0.28)';
-      g.fillRect(b.x + 6, b.y + 8, b.w, b.h);
+      g.fillRect(b.x + 10, b.y + 13, b.w, b.h);
       if (b.big) {
         g.fillStyle = b.color;
         g.fillRect(b.x, b.y, b.w, b.h);

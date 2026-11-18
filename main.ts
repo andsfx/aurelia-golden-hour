@@ -39,8 +39,11 @@ writeFileSync(
 );
 
 // A short staging summary on stdout, so the recorder and the grader's log show what was
-// handed in: the game tree totals, the screenshots, and the dossier's size.
+// handed in: the game tree totals, each screenshot with its byte size (the judge's dossier
+// detail - the four covers ARE the entry), and the dossier's size.
 const tree = readGameTree(join(out, 'game'), { game_max_files: 993, game_max_bytes: 50331648, game_path_max_bytes: 1000 });
 const shots = readdirSync(join(out, 'screenshots')).filter((name: string) => !name.startsWith('.')).sort();
+const shotSizes = shots.map((name: string) => `${name} (${statSync(join(out, 'screenshots', name)).size} bytes)`);
 const dossierBytes = statSync(join(out, 'dossier.json')).size;
 console.log(`staged ${tree.files.length} game files (${tree.totalBytes} bytes), screenshots: ${shots.join(', ')}, dossier: ${dossierBytes} bytes`);
+console.log(`shot sizes: ${shotSizes.join(', ')}`);

@@ -67,7 +67,11 @@ export const MISSIONS = [
   { id: 4, title: 'The Getaway', reward: 2000, start: 'Get out of town. Reach the north bridge.', step1: 'Reach the north bridge.' },
 ];
 
-// District palettes.
+// District palettes, all tuned to the 5:45 PM golden hour: downtown glass leans blue-grey
+// (#4f8fb0..#467fa0) to catch the low sun, harbor walls are warm pastels (#e8d3b0 sand,
+// #e3b7a0 clay, #efd9b8 cream) with terracotta roofs (#b0552f..#c16a3f), the marina reads
+// cool steel (#a9b4c0..#b0bcc8), the park greens (#4f7d46..#46733f) sit under orange light,
+// and the ocean (#0e5d7f..#1d86ae) darkens with distance from the beach (#e7d3a4 sand).
 export const PALETTES = {
   downtown: { ground: '#33383f', block: '#40464f', glass: ['#4f8fb0', '#3f7d9e', '#5aa3c4', '#356d8a', '#467fa0'], roof: '#2c3138', trim: '#cfd6de' },
   harbor: { ground: '#c9b28f', block: '#c9b28f', wall: ['#e8d3b0', '#e3b7a0', '#efd9b8', '#dcae8f', '#ecd9b0'], roof: ['#b0552f', '#a34a28', '#c16a3f'], trim: '#7c5a44' },

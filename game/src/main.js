@@ -105,6 +105,8 @@ const game = {
   lastWanted: 0,
   objectiveOverride: null,
   objectiveText: '',
+  missionBar: null,   // {label, progress} - the top-left mission progress readout
+  dialogue: null,     // {text, speaker, t, ttl} - portrait dialogue box
   nearCar: false,
   nearDoor: false,
   enterTarget: null,
@@ -121,6 +123,11 @@ const game = {
 function announce(message) {
   status.textContent = message;
 }
+
+/** Show a line in the portrait dialogue box (typed effect in the HUD). */
+game.say = (text, speaker = 'Santos', ttl = 4.5) => {
+  game.dialogue = { text, speaker, t: 0, ttl };
+};
 
 // ---------------------------------------------------------------- lifecycle
 
@@ -384,6 +391,12 @@ function stepPlay(dt) {
   game.clockMinutes = (game.clockMinutes + dt * 30) % 1440;
   if (police.wanted > game.lastWanted) game.lastHeatT = game.time;
   game.lastWanted = police.wanted;
+  // portrait dialogue: type over time, auto-dismiss after its ttl
+  if (game.dialogue) {
+    game.dialogue.t += dt;
+    game.dialogue.ttl -= dt;
+    if (game.dialogue.ttl <= 0) game.dialogue = null;
+  }
 
   // convert the mouse to world space under the current camera
   const cam = game.camera;
@@ -549,6 +562,7 @@ function stepPlay(dt) {
 function stepFrame(dt) {
   game.time += dt;
   const pressed = input.takePressed();
+  if (pressed.size > 0 && game.dialogue) game.dialogue = null; // any key dismisses the dialogue
   if (game.screen === 'play') handlePlayEdges(pressed);
   handleMenuEdges(pressed);
   if (game.screen === 'play') stepPlay(dt);
@@ -587,6 +601,7 @@ function draw() {
   ctx.translate(-cam.x, -cam.y);
   const camRect = { x0, y0, x1: x0 + VIEW_W * zoom, y1: y0 + VIEW_H * zoom };
   drawCity(ctx, city, camRect, game.time);
+  police.drawSearchlight(ctx, game); // the heli's light pool, under the cars and people
   effects.drawWorld(ctx);
   mission.draw(ctx, game.time);
   peds.draw(ctx, game.time);
@@ -605,6 +620,7 @@ function draw() {
     ctx.fill();
   }
   player.draw(ctx, game.time);
+  police.drawHeli(ctx, game.time); // the helicopter rides on top of everything
   ctx.restore();
   effects.drawOverlay(ctx, game, game.time);
   if (HUD_SCREENS.has(game.screen)) hud.draw(ctx, game);

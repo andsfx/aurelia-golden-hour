@@ -36,7 +36,9 @@ export function stepVehiclePhysics(car, dt, game) {
   const speedFactor = Math.min(1, Math.abs(car.speed) / (spec.maxSpeed * 0.5));
   const dir = car.speed >= 0 ? 1 : -1;
   car.angle -= car.steer * spec.turn * speedFactor * dir * dt;
-  // grip: hard steering at speed slides (drift)
+  // grip: hard steering at speed slides (drift). The 0.55 steer / 0.7 speedFactor
+  // thresholds gate the drift so gentle lane changes never scrub speed - only real
+  // cornering at pace breaks traction (grip 0.865) and lays skid marks.
   const grip = Math.abs(car.steer) > 0.55 && speedFactor > 0.7 ? 0.865 : 0.975;
   const fvx = fx * car.speed;
   const fvy = fy * car.speed;

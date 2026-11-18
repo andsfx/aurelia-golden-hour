@@ -21,7 +21,8 @@ export function createTraffic(city, rng, count) {
     const along = e.len * car.route.t;
     const sx = e.x1 + e.ux * along;
     const sy = e.y1 + e.uy * along;
-    // right-hand traffic: offset to the right of travel
+    // right-hand traffic: every car hugs the lane on its right of travel (LANE_OFF px off
+    // the center line), flipped per direction, so opposing traffic never head-ons.
     const side = car.route.dir === 0 ? 1 : -1;
     const px = -e.uy * LANE_OFF * side;
     const py = e.ux * LANE_OFF * side;

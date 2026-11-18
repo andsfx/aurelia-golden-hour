@@ -1,4 +1,6 @@
-/* Fullscreen letterboxed canvas: the game renders at a fixed 1280x720 and scales to fit. */
+/* Fullscreen letterboxed canvas: the game renders at a fixed 1280x720 and scales to fit,
+   so the aspect ratio can never squash the HUD. width/height use the min() of both axes -
+   a wide window pillarboxes, a tall one letterboxes, and the dark body fills the bars. */
 html, body {
   margin: 0;
   height: 100%;

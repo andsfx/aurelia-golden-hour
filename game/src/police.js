@@ -1,6 +1,8 @@
 // The Aurelia Bay Police Department: a wanted level from 0 to 5 stars, patrol cruisers that
 // cruise the grid when all is calm, chase units that route through the road graph and ram,
-// roadblocks on the district bridges at 4 stars, gunfire at 5, and the BUSTED pin rule.
+// roadblocks on the district bridges at 4 stars, gunfire at 5, the BUSTED pin rule, and -
+// from 4 stars up - the ABPD helicopter: it circles the player, keeps its searchlight pool
+// on them, narrows and flares at 5, and thrumms through the audio synth.
 import { HEAT, LANE_OFF } from './config.js';
 import { createVehicle, stepVehiclePhysics } from './vehicle.js';
 
@@ -20,6 +22,9 @@ export function createPolice(city, rng) {
   let pinT = 0;
   let blocked = [];
   let nextCopId = 0;
+  // the helicopter: kinematic, never collides, purely an air-support presence
+  const heli = { active: false, x: 0, y: 0, angle: 0, radius: 210 };
+  let heliFlareT = 0;
 
   function spawnCop(x, y, angle) {
     const car = createVehicle('cop', x, y, angle);
@@ -68,6 +73,7 @@ export function createPolice(city, rng) {
   return {
     cops,
     get wanted() { return wanted; },
+    get heli() { return heli; },
     setWanted(v) { wanted = Math.max(0, Math.min(5, v)); },
     get heatTimer() { return heatTimer; },
     set heatTimer(v) { heatTimer = v; },
@@ -276,11 +282,126 @@ export function createPolice(city, rng) {
       }
 
       game.audio.siren(chasingAny, wanted >= 3);
+      game.audio.heliThrum(heli.active);
+      this.updateHeli(dt, game);
       pinT = pin ? pinT + dt : 0;
       if (pinT > 3) {
         pinT = 0;
         game.onPlayerBusted();
       }
+    },
+
+    /** The air unit: spawns at 4 stars, circles the player, tightens and flares at 5. */
+    updateHeli(dt, game) {
+      const p = game.player.inCar ?? game.player;
+      if (wanted >= 4) {
+        if (!heli.active) {
+          heli.active = true;
+          heli.angle = 0;
+          heli.radius = wanted >= 5 ? 170 : 210;
+          heli.x = p.x + heli.radius;
+          heli.y = p.y;
+          heliFlareT = wanted >= 5 ? 0.6 : 999; // at 5 stars the first flare comes quickly
+        }
+        // at 5 stars the orbit is faster and tighter, the searchlight narrows
+        const spin = wanted >= 5 ? 0.9 : 0.55;
+        heli.radius = wanted >= 5 ? 170 : 210;
+        heli.angle += spin * dt;
+        heli.x = p.x + Math.cos(heli.angle) * heli.radius;
+        heli.y = p.y + Math.sin(heli.angle) * heli.radius;
+        if (wanted >= 5) {
+          heliFlareT -= dt;
+          if (heliFlareT <= 0) {
+            heliFlareT = 2.4;
+            game.effects.flare(heli.x + rng.range(-14, 14), heli.y + rng.range(6, 16));
+          }
+        }
+      } else if (heli.active) {
+        heli.active = false;
+        heliFlareT = 0;
+      }
+    },
+
+    /** World-space searchlight pool, drawn under the entities (the light hits the street). */
+    drawSearchlight(ctx, game) {
+      if (!heli.active) return;
+      const p = game.player.inCar ?? game.player;
+      const narrow = wanted >= 5;
+      const rx = narrow ? 85 : 150;
+      const ry = narrow ? 150 : 245;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      const a = Math.atan2(heli.y - p.y, heli.x - p.x);
+      ctx.rotate(a + Math.PI / 2);
+      const g = ctx.createRadialGradient(0, 0, 6, 0, 0, ry);
+      g.addColorStop(0, 'rgba(255,246,190,0.36)');
+      g.addColorStop(0.6, 'rgba(255,236,160,0.15)');
+      g.addColorStop(1, 'rgba(255,220,120,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,244,200,0.28)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    },
+
+    /** The helicopter itself: rotor blur, fuselage, tail boom, blinking nav lights. */
+    drawHeli(ctx, time) {
+      if (!heli.active) return;
+      ctx.save();
+      ctx.translate(heli.x, heli.y);
+      // spinning rotor: two crossing blur lines
+      const spin = time * 26;
+      ctx.strokeStyle = 'rgba(205,214,224,0.55)';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      for (let k = 0; k < 2; k++) {
+        const a = spin + (k * Math.PI) / 2;
+        ctx.beginPath();
+        ctx.moveTo(-Math.cos(a) * 36, -Math.sin(a) * 36);
+        ctx.lineTo(Math.cos(a) * 36, Math.sin(a) * 36);
+        ctx.stroke();
+      }
+      // shadow on the ground below
+      ctx.fillStyle = 'rgba(20,16,10,0.22)';
+      ctx.beginPath();
+      ctx.ellipse(4, 30, 18, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // fuselage
+      ctx.fillStyle = '#39424e';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 15, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(12,14,16,0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // cockpit glass
+      ctx.fillStyle = '#9fd4e8';
+      ctx.beginPath();
+      ctx.ellipse(5, -1, 5, 3.4, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      // tail boom + tail rotor
+      ctx.fillStyle = '#39424e';
+      ctx.fillRect(13, -1.5, 12, 3);
+      ctx.strokeStyle = 'rgba(205,214,224,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(26, 1.5);
+      ctx.lineTo(26, -5);
+      ctx.stroke();
+      // blinking nav lights: red port, green starboard
+      const blink = Math.sin(time * 6) > 0;
+      ctx.fillStyle = blink ? '#ff3b30' : 'rgba(255,59,48,0.25)';
+      ctx.beginPath();
+      ctx.arc(-8, 0, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = blink ? 'rgba(50,220,90,0.25)' : '#32dc5a';
+      ctx.beginPath();
+      ctx.arc(24, -1, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     },
 
     /** Cops chasing right now, for the minimap and shots. */

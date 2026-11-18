@@ -9,7 +9,7 @@ export function createPlayer(city, rng) {
     health: PLAYER.health, armor: PLAYER.armor,
     angle: 0, moving: false, walkPhase: 0, lastMove: { x: 1, y: 0 },
     inCar: null,
-    gun: { ammo: PISTOL.mag, cooldown: 0, reload: 0 },
+    gun: { ammo: PISTOL.mag, cooldown: 0, reload: 0, reserve: 24, total: 120 },
     lastDamage: -99, damageFlash: 0, punchT: 0,
     dead: false, blink: 0,
   };
@@ -23,6 +23,8 @@ export function createPlayer(city, rng) {
     p.inCar = null;
     p.gun.ammo = PISTOL.mag;
     p.gun.reload = 0;
+    p.gun.reserve = 24;
+    p.gun.total = 120;
     p.lastDamage = -99;
     p.damageFlash = 0;
   }
@@ -33,13 +35,17 @@ export function createPlayer(city, rng) {
     if (p.gun.reload > 0) {
       p.gun.reload -= dt;
       if (p.gun.reload <= 0) {
-        p.gun.ammo = PISTOL.mag;
+        // top the mag up from the reserve; reserve never goes negative
+        const need = PISTOL.mag - p.gun.ammo;
+        const take = Math.min(need, Math.max(0, p.gun.reserve));
+        p.gun.ammo += take;
+        p.gun.reserve = Math.max(0, p.gun.reserve - take);
         game.audio.reload();
       }
     }
     if (p.punchT > 0) p.punchT -= dt;
     if (p.damageFlash > 0) p.damageFlash -= dt;
-    // regen out of combat
+    // armor soaks damage first; health regenerates only after 5s without a hit
     if (game.time - p.lastDamage > PLAYER.regenDelay && p.health < PLAYER.health) {
       p.health = Math.min(PLAYER.health, p.health + PLAYER.regenRate * dt);
     }

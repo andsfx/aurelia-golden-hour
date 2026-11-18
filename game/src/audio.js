@@ -9,9 +9,11 @@ export function createAudio(rng) {
   let muted = false;
   let engine = null;    // {gain, osc, filter}
   let siren = null;     // {gain, osc, lfo, lfoGain}
+  let heli = null;      // {gain, osc, lfo, lfoGain} - the air unit's low wub
   let alarmNode = null; // {gain, osc}
   let oceanNode = null; // {gain}
   let sirenOn = false;
+  let heliOn = false;
   let alarmOn = false;
   let alarmPhase = 0;
   let gullTimer = 8;
@@ -131,6 +133,33 @@ export function createAudio(rng) {
         siren.lfo.frequency.setTargetAtTime(urgent ? 7.5 : 4.5, ctx.currentTime, 0.3);
         siren.gain.gain.setTargetAtTime(urgent ? 0.07 : 0.05, ctx.currentTime, 0.3);
       }
+    },
+
+    /** The helicopter's steady low wub: a slow LFO on a deep sawtooth under the sirens. */
+    heliThrum(on) {
+      ensure();
+      if (!ctx) return;
+      if (on && !heliOn) {
+        if (!heli) {
+          heli = { gain: ctx.createGain(), osc: ctx.createOscillator(), lfo: ctx.createOscillator(), lfoGain: ctx.createGain() };
+          heli.gain.gain.value = 0;
+          heli.osc.type = 'sawtooth';
+          heli.osc.frequency.value = 42;
+          heli.lfo.type = 'sine';
+          heli.lfo.frequency.value = 5.5;
+          heli.lfoGain.gain.value = 9;
+          heli.lfo.connect(heli.lfoGain);
+          heli.lfoGain.connect(heli.osc.frequency);
+          heli.osc.connect(heli.gain);
+          heli.gain.connect(master);
+          heli.osc.start();
+          heli.lfo.start();
+        }
+        heliOn = true;
+      } else if (!on && heliOn) {
+        heliOn = false;
+      }
+      if (heli) heli.gain.gain.setTargetAtTime(heliOn ? 0.055 : 0, ctx.currentTime, 0.4);
     },
 
     alarm(on) {

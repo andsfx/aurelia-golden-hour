@@ -5,6 +5,22 @@
 import { BRIDGE_ZONE, HEAT, JEWELRY, MISSIONS, PIER_END, PIERS } from './config.js';
 import { createVehicle } from './vehicle.js';
 
+// Santos Vale's voice lines, one per mission beat; the HUD portrait dialogue reads them.
+export const STORY_LINES = {
+  openings: [
+    'Santos: The Voyager has my plates on it. Borrow it quietly.',
+    'Santos: The jewelry store in the old market. In and out before dusk.',
+    'Santos: The contact is jumpy. Deliver the package, then run.',
+    'Santos: Last job. Reach the bridge and you are done with me.',
+  ],
+  closings: [
+    'Santos: Clean delivery. The Marina owes us now.',
+    'Santos: That alarm woke half the harbor. Nice work.',
+    'Santos: The package reached the docks. Santos owes you now.',
+    'Santos: The city is yours, Naia. Golden hour looks good on you.',
+  ],
+};
+
 export function createMissions(city, rng) {
   const m = {
     id: 0,
@@ -50,6 +66,8 @@ export function createMissions(city, rng) {
     m.pickups = m.pickups.filter((p) => !p.fromMission || p.missionId !== id);
     game.effects.popup([`MISSION ${id}: ${def.title.toUpperCase()}`, def.start]);
     game.audio.missionSting();
+    // the fixer chimes in on the portrait dialogue (shots may override the line)
+    if (game.say) game.say(STORY_LINES.openings[id - 1], 'Santos', 5);
     if (id === 1) {
       // the marked Voyager GT parked downtown
       m.markedCar = createVehicle('voyager', 1590, 320, 0, '#e8c94a');
@@ -74,6 +92,7 @@ export function createMissions(city, rng) {
     m.marker = null;
     m.thugs = [];
     game.storyComplete = game.missionId >= 4;
+    if (game.say) game.say(STORY_LINES.closings[def.id - 1], 'Santos', 5);
     game.onMissionComplete(def);
   }
 

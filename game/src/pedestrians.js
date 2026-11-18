@@ -33,6 +33,8 @@ export function createPedestrians(city, rng, count) {
 
   /** Anything threatening nearby: a recent gunshot or a fast car. */
   function threatNear(game, pd) {
+    // the radii are the panic rule: gunfire alarms everyone within 340px, and a car
+    // faster than 130 within 110px is a live threat - anything further is just traffic.
     if (game.shotAlert && game.time - game.shotAlert.t < 2.2 && Math.hypot(game.shotAlert.x - pd.x, game.shotAlert.y - pd.y) < 340) return game.shotAlert;
     for (const c of game.cars) {
       if (Math.abs(c.speed) > 130 && Math.hypot(c.x - pd.x, c.y - pd.y) < 110) return { x: c.x, y: c.y };

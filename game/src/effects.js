@@ -60,6 +60,15 @@ export function createEffects(rng) {
     blood(x, y) {
       this.burst(x, y, '#a83232', 8, 120, 0.4, 2.6, 'circle');
     },
+    /** Helicopter countermeasure: small orange sparks that drift down and fade. */
+    flare(x, y) {
+      for (let k = 0; k < 6; k++) {
+        const a = rng.range(0, Math.PI * 2);
+        const v = rng.range(12, 42);
+        addPart(x, y, Math.cos(a) * v, Math.sin(a) * v + rng.range(6, 22), rng.range(0.7, 1.3), rng.range(1.6, 3), '#ff9a3c', 'spark');
+      }
+      addPart(x, y, 0, 0, 0.5, 10, '#ffb84d', 'glow');
+    },
     addShake(v) { state.shake = Math.min(14, state.shake + v); },
     flash(color, v = 1) { state.flash = v; state.flashColor = color; },
     addVignette(v) { state.vignette = Math.min(1, state.vignette + v); },

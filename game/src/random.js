@@ -1,5 +1,8 @@
 // Deterministic PRNG (mulberry32). The whole game uses one seeded stream, so the same
 // ?seed=N URL always builds and plays the same world - no Math.random in world logic.
+// In shot mode main.js seeds it from the URL before any module consumes it, and every
+// world build, traffic car and staged scene draws from the same stream in the same order,
+// which is what makes ?shot=chase&seed=7 reproduce pixel-for-pixel.
 export function createRandom(seed) {
   let s = seed >>> 0;
   const next = () => {

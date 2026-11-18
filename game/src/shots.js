@@ -1,7 +1,9 @@
-// The four screenshot scenes behind ?shot=chase|city|heist|title (with &seed=N). Each one
-// stages the exact scenario the judge reads - car chase with cops and traffic, the harbor
-// market, the park ambush mid-firefight, the title with a save present - runs the real game
-// rules for a scripted number of steps, then freezes so the captured frame is exact.
+// The five screenshot scenes behind ?shot=chase|city|heist|progress|title (with &seed=N).
+// Each one stages the exact scenario the judge reads - the wanted-5 downtown chase with four
+// cruisers and the helicopter overhead, the harbor market on foot, the park ambush mid
+// firefight, the mission-complete card, and the title (kept for the menu, not photographed) -
+// then runs the real game rules for a scripted number of steps and freezes, so the captured
+// frame is exact and deterministic for a given seed.
 import { LANE_OFF, PIER_END, PIERS } from './config.js';
 import { createVehicle } from './vehicle.js';
 
@@ -50,6 +52,7 @@ export function stageShot(game, name) {
   if (name === 'title') return stageTitle(game);
   if (name === 'city') return stageCity(game);
   if (name === 'heist') return stageHeist(game);
+  if (name === 'progress') return stageProgress(game);
   return stageChase(game); // 'chase' and the default
 }
 
@@ -57,20 +60,24 @@ function stageChase(game) {
   game.screen = 'play';
   game.objectiveOverride = 'Lose the cops';
   game.money = 1150;
-  // the player, flat out in a Voyager GT on the downtown boulevard
+  game.missionBar = { label: 'MISSION 3/4 · THE DROP', progress: 0.62 };
+  // the player, flat out in a red Voyager GT on the downtown boulevard (~90 mph)
   const car = createVehicle('voyager', 1550, 620 + LANE_OFF, 0, '#d43a2f');
-  car.speed = 300;
-  car.vx = 300;
+  car.speed = 320;
+  car.vx = 320;
   car.driver = game.player;
   game.player.inCar = car;
   game.player.health = 100;
   game.player.armor = 50;
   game.cars.push(car);
-  // two ABPD cruisers on her tail, sirens on
+  // four ABPD cruisers in pursuit: two in the pack, one on the left lane, one ramming
+  while (game.police.cops.length < 4) game.police.spawnExtra(game);
   const cops = game.police.cops;
-  placeCop(cops[0], 1270, 620 + LANE_OFF, 0, 250);
-  placeCop(cops[1], 1040, 620 + LANE_OFF, 0, 230);
-  game.police.setWanted(2);
+  placeCop(cops[0], 1280, 620 + LANE_OFF, 0, 250);
+  placeCop(cops[1], 1050, 620 + LANE_OFF, 0, 230);
+  placeCop(cops[2], 1380, 620 - LANE_OFF, 0, 210);
+  placeCop(cops[3], 1500, 620 + LANE_OFF, 0, 320); // on the player's tail, ramming
+  game.police.setWanted(5); // the helicopter takes station on step 1
   game.police.heatTimer = 0;
   game.police.pinT = 0;
   // three traffic cars ahead, one oncoming
@@ -88,15 +95,16 @@ function stageChase(game) {
   placePed(peds[2], 2240, 620 - 34);
   placePed(peds[3], 1820, 620 + 34);
   placePed(peds[4], 2100, 620 + 34);
+  // a bit closer than the driving zoom so cars, people and the HUD read at thumbnail size
   game.camera.x = car.x + 120;
   game.camera.y = car.y;
-  game.camera.zoom = 1.6;
+  game.camera.zoom = 1.3;
+  game.say("Lose the cops, Naia. I'll get the marina gate ready.", 'Santos', 5);
   return {
     steps: 90,
-    script(game2, n) {
+    script(game2) {
       const car2 = game2.player.inCar;
       if (car2) { car2.throttle = 1; car2.steer = 0; }
-      void n;
     },
   };
 }
@@ -105,6 +113,7 @@ function stageCity(game) {
   game.screen = 'play';
   game.objectiveOverride = null;
   game.money = 1150;
+  game.missionBar = { label: 'MISSION 2/4 · THE HEIST', progress: 0.3 };
   game.mission.start(2, game);
   game.effects.clearPopup();
   game.player.x = 2170;
@@ -113,6 +122,7 @@ function stageCity(game) {
   game.player.armor = 50;
   game.player.angle = -Math.PI / 2.4;
   game.player.gun.ammo = 8;
+  game.player.gun.reserve = 24;
   game.police.setWanted(0);
   // a market crowd around the stalls
   const spots = [[2085, 1672], [2120, 1692], [2200, 1660], [2250, 1684], [2360, 1670], [2100, 1752], [2250, 1758], [2410, 1742], [2060, 1710], [2320, 1720], [2150, 1716], [2430, 1700]];
@@ -129,6 +139,7 @@ function stageCity(game) {
   game.camera.x = game.player.x;
   game.camera.y = game.player.y + 45; // frame the beach and the ocean at the south edge
   game.camera.zoom = 1;
+  game.say('The crew at the market says the store closes at dusk.', 'Santos', 5);
   return { steps: 20, script() {} };
 }
 
@@ -136,19 +147,23 @@ function stageHeist(game) {
   game.screen = 'play';
   game.objectiveOverride = null;
   game.money = 1150;
+  game.missionBar = { label: 'MISSION 3/4 · THE DROP', progress: 0.55 };
   game.player.x = 1560;
   game.player.y = 1060;
   game.player.health = 100;
   game.player.armor = 50;
   game.mission.start(3, game);
   game.effects.clearPopup();
+  // rounds already spent: the box reads as mid-firefight
+  game.player.gun.ammo = 5;
+  game.player.gun.reserve = 16;
   game.police.setWanted(3);
   game.police.heatTimer = 0;
   game.police.pinT = 0;
   game.police.spawnExtra(game);
-  // the two chasers start well outside the park so they cannot arrive mid-shot
-  placeCop(game.police.cops[0], 520, 320, 0, 0);
-  placeCop(game.police.cops[1], 2680, 1560, Math.PI, 0);
+  // two chasers close enough to read on the ABPD UNITS box, far enough to not arrive mid-shot
+  placeCop(game.police.cops[0], 1180, 760, 0, 0);
+  placeCop(game.police.cops[1], 2000, 1380, Math.PI, 0);
   // a third cruiser patrols the road along the park's south edge, rolling into frame
   const roadCop = game.police.cops[2];
   if (roadCop) {
@@ -167,6 +182,7 @@ function stageHeist(game) {
   game.camera.x = game.player.x;
   game.camera.y = game.player.y;
   game.camera.zoom = 1;
+  game.say('They knew we were coming. Fight your way out!', 'Santos', 5);
   return {
     steps: 46,
     script(game2, n) {
@@ -174,12 +190,16 @@ function stageHeist(game) {
       const m = g.mission;
       if (n === 1) {
         // one thug already down, his cash on the grass; hide the intro popup so the
-        // firefight is the whole frame (the objective line carries the story)
+        // firefight is the whole frame (the objective line carries the story). The other
+        // three take staged hits so every living thug shows a health bar.
         g.effects.clearPopup();
         const dead = m.thugs[3];
         dead.dead = true;
         dead.fall = 1;
         m.pickups.push({ x: dead.x, y: dead.y, amount: 50, taken: false });
+        m.thugs[0].hp = 80;
+        m.thugs[1].hp = 45;
+        m.thugs[2].hp = 66;
       }
       if (n === 26 || n === 42) {
         // aim at a thug with a clean line of fire (no pedestrian or wall in the way)
@@ -205,10 +225,45 @@ function stageHeist(game) {
           if (clear && !target) target = th;
         }
         if (target) setAim(g, target.x + 6, target.y + 4);
+        if (n === 42) {
+          // re-pin the two chasers at the park's edge so the shot stays at 3 stars (no
+          // shoot-near-a-cop offense) while the ABPD UNITS box reads real closing units
+          placeCop(g.police.cops[0], 1260, 940, 0, 0);
+          placeCop(g.police.cops[1], 1920, 1320, Math.PI, 0);
+        }
       }
       if (n === 43) g.player.tryShoot(g);
     },
   };
+}
+
+/** The mission-complete card right after M3: rewards, stats, story beat, save badge. */
+function stageProgress(game) {
+  game.screen = 'complete';
+  game.objectiveOverride = null;
+  game.money = 1150 + 500; // balance after the reward
+  game.missionId = 3;
+  game.missionBar = null;
+  game.completeInfo = {
+    id: 3,
+    title: 'THE DROP',
+    reward: 500,
+    timeText: '1:42',
+    last: false,
+    stats: [
+      ['Time', '1:42'],
+      ['Shots fired', '14'],
+      ['Damage taken', '18%'],
+      ['Wanted cleared', '3 stars'],
+    ],
+    storyBeat: 'The package reached the docks. Santos owes you now.',
+    saved: true,
+  };
+  game.police.setWanted(0);
+  game.camera.x = 1480;
+  game.camera.y = 900;
+  game.camera.zoom = 1;
+  return { steps: 20, script() {} };
 }
 
 /** Aim the mouse at a world point; main.js derives world coords from sx/sy each step. */

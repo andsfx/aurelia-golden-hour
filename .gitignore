@@ -1,3 +1,4 @@
 # Build output from main.ts (dossier dirs) and raw screenshot renders.
+# The submitted screenshots are the committed .jpg files in screenshots/, never the PNGs.
 out*/
 *.png
